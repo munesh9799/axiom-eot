@@ -989,7 +989,7 @@ function DashboardView({ result, history, t, onNavigate }) {
 
       {/* Stats row */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
-        <StatCard label="FIDIC 2017 Rules" value="40" sub="Symbolic" color={t.emerald} icon="§" />
+        <StatCard label="FIDIC 2017 Rules" value="40" sub="Symbolic Rules" color={t.emerald} icon="§" />
         <StatCard label="KG Nodes" value={kgStats.total_nodes} sub="Typed property graph" color={t.cyan} icon="◉" />
         <StatCard label="KG Edges" value={kgStats.total_edges} sub="Relation types" color={t.violet} icon="→" />
         <StatCard label="Rule Tiers" value="8" sub="Priority ordered" color={t.amber} icon="⊞" />
