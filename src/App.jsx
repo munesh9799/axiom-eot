@@ -18,6 +18,17 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   API PROXY CONFIGURATION
+   ─────────────────────────────────────────────────────────────────────────
+   Deploy worker.js to Cloudflare Workers → paste your Worker URL below.
+   Free plan: 100,000 requests/day — https://workers.cloudflare.com
+   Steps: 1) wrangler deploy worker.js --name axiom-proxy
+          2) wrangler secret put ANTHROPIC_API_KEY
+          3) Paste your worker URL below (no trailing slash)
+═══════════════════════════════════════════════════════════════════════════ */
+const PROXY_URL = "https://axiom-mk-proxy.axiom-eot.workers.dev";
+
+/* ═══════════════════════════════════════════════════════════════════════════
    FIDIC 2017 KNOWLEDGE BASE
 ═══════════════════════════════════════════════════════════════════════════ */
 const FIDIC_KB = {
@@ -221,7 +232,7 @@ async function neuralExtract(input,files,setMsg){
     const content=[];
     for(const f of(files||[])){if(!f?.base64)continue;if(f.type==="application/pdf")content.push({type:"document",source:{type:"base64",media_type:"application/pdf",data:f.base64}});else if(f.type?.startsWith("image/"))content.push({type:"image",source:{type:"base64",media_type:f.type,data:f.base64}});}
     content.push({type:"text",text:`Extract EOT claim facts:\n${input.narrative||JSON.stringify(input)}`});
-    const res=await fetch("https://axiom-proxy.axiomeot.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:sys,messages:[{role:"user",content}]})});
+    const res=await fetch(PROXY_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:sys,messages:[{role:"user",content}]})});
     const data=await res.json();const raw=data.content?.map(b=>b.text||"").join("")||"";
     const si=raw.indexOf("{"),ei=raw.lastIndexOf("}");
     if(si>=0&&ei>si){const p=JSON.parse(raw.slice(si,ei+1));return{...heuristicExtract(input),...p,method:"llm"};}
@@ -368,15 +379,15 @@ function GlobalStyles({ t }) {
       @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,300;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       html { font-size: 16px; -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
-      body { background: ${t.bg}; color: ${t.text}; font-family: 'DM Sans', system-ui, sans-serif; line-height: 1.5; }
-      ::-webkit-scrollbar { width: 4px; height: 4px; }
+      body { background: ${t.bg}; color: ${t.text}; font-family: 'DM Sans', system-ui, sans-serif; line-height: 1.55; font-size: 15px; }
+      ::-webkit-scrollbar { width: 5px; height: 5px; }
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb { background: ${t.border}; border-radius: 10px; }
       ::-webkit-scrollbar-thumb:hover { background: ${t.borderHi}; }
       select option { background: ${t.surface2}; color: ${t.text}; }
       input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
-      input[type=checkbox] { accent-color: ${t.amber}; width: 14px; height: 14px; cursor: pointer; }
-      input[type=radio] { accent-color: ${t.amber}; cursor: pointer; }
+      input[type=checkbox] { accent-color: ${t.amber}; width: 16px; height: 16px; cursor: pointer; }
+      input[type=radio] { accent-color: ${t.amber}; cursor: pointer; width: 15px; height: 15px; }
       ::placeholder { color: ${t.textGhost} !important; opacity: 1; }
       button { font-family: 'DM Sans', system-ui, sans-serif; }
 
@@ -421,7 +432,7 @@ function GlobalStyles({ t }) {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 // Mono label
-const ML = ({ children, t, color, size=9, mb=6 }) => (
+const ML = ({ children, t, color, size=11, mb=8 }) => (
   <div style={{ fontSize:size, fontFamily:"'JetBrains Mono',monospace", color: color||t.textMuted, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:mb, fontWeight:700 }}>
     {children}
   </div>
@@ -429,14 +440,14 @@ const ML = ({ children, t, color, size=9, mb=6 }) => (
 
 // Card
 const Card = ({ children, style={}, className="card-anim", glow, t, noPad }) => (
-  <div className={className} style={{ background: t.surface, border:`1px solid ${t.border}`, borderRadius:12, padding: noPad ? 0 : 18, boxShadow: glow ? `0 0 0 1px ${t.amberBorder}, ${t.shadowSm}` : t.shadowCard, ...style }}>
+  <div className={className} style={{ background: t.surface, border:`1px solid ${t.border}`, borderRadius:12, padding: noPad ? 0 : 22, boxShadow: glow ? `0 0 0 1px ${t.amberBorder}, ${t.shadowSm}` : t.shadowCard, ...style }}>
     {children}
   </div>
 );
 
 // Badge
 const Badge = ({ children, t, color, sm, glow }) => (
-  <span style={{ display:"inline-flex", alignItems:"center", gap:3, padding: sm ? "1px 6px" : "2px 8px", background: (color||t.amber)+"16", border:`1px solid ${(color||t.amber)}28`, borderRadius:4, color: color||t.amber, fontSize: sm ? 9 : 10, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase", boxShadow: glow ? `0 0 10px ${(color||t.amber)}33` : "none" }}>
+  <span style={{ display:"inline-flex", alignItems:"center", gap:3, padding: sm ? "2px 7px" : "3px 10px", background: (color||t.amber)+"16", border:`1px solid ${(color||t.amber)}28`, borderRadius:4, color: color||t.amber, fontSize: sm ? 10 : 11, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase", boxShadow: glow ? `0 0 10px ${(color||t.amber)}33` : "none" }}>
     {children}
   </span>
 );
@@ -447,7 +458,7 @@ const OutcomeChip = ({ outcome, t, lg }) => {
   const shadeMap = { emerald: t.emerald, rose: t.rose, amber: t.amber, sub: t.textSub };
   const c = shadeMap[cfg.shade] || t.textSub;
   return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:5, padding: lg ? "6px 14px" : "3px 10px", background: c+"18", border:`1px solid ${c}30`, borderRadius:6, color:c, fontSize: lg ? 14 : 10, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, letterSpacing:"0.08em" }}>
+    <span style={{ display:"inline-flex", alignItems:"center", gap:5, padding: lg ? "7px 16px" : "4px 11px", background: c+"18", border:`1px solid ${c}30`, borderRadius:6, color:c, fontSize: lg ? 15 : 11, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, letterSpacing:"0.08em" }}>
       <span>{cfg.emoji}</span> {cfg.label}
     </span>
   );
@@ -476,8 +487,8 @@ const ConfidenceArc = ({ pct, t, size=88 }) => {
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={c} strokeWidth="5" strokeDasharray={`${arcLen} ${circ}`} strokeLinecap="round" transform={`rotate(135 ${size/2} ${size/2})`} style={{ filter:`drop-shadow(0 0 5px ${c}88)`, transition:"stroke-dasharray 0.8s cubic-bezier(0.34,1.56,0.64,1)" }} />
       </svg>
       <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", paddingTop:4 }}>
-        <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:17, fontWeight:700, color:c, lineHeight:1 }}>{pct}</div>
-        <div style={{ fontSize:8, color:t.textMuted, fontFamily:"'JetBrains Mono',monospace", letterSpacing:"0.1em" }}>CONF%</div>
+        <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:20, fontWeight:700, color:c, lineHeight:1 }}>{pct}</div>
+        <div style={{ fontSize:10, color:t.textMuted, fontFamily:"'JetBrains Mono',monospace", letterSpacing:"0.1em" }}>CONF%</div>
       </div>
     </div>
   );
@@ -485,43 +496,43 @@ const ConfidenceArc = ({ pct, t, size=88 }) => {
 
 // Toggle / switch
 const Toggle = ({ checked, onChange, label, note, t }) => (
-  <label style={{ display:"flex", alignItems:"flex-start", gap:10, marginBottom:10, cursor:"pointer", userSelect:"none" }}>
-    <div style={{ position:"relative", width:36, height:19, flexShrink:0, marginTop:2 }}>
+  <label style={{ display:"flex", alignItems:"flex-start", gap:10, marginBottom:12, cursor:"pointer", userSelect:"none" }}>
+    <div style={{ position:"relative", width:40, height:22, flexShrink:0, marginTop:2 }}>
       <input type="checkbox" checked={checked} onChange={onChange} style={{ opacity:0, width:0, height:0, position:"absolute" }} />
-      <div onClick={onChange} style={{ position:"absolute", inset:0, background:checked?`linear-gradient(135deg, ${t.amber}, ${t.amberBright})`:t.surface3, borderRadius:10, border:`1px solid ${checked?t.amber:t.border}`, transition:"all 0.18s", boxShadow:checked?`0 0 8px ${t.amberGlow}`:t.shadowCard }}>
-        <div style={{ position:"absolute", top:2, left:checked?16:2, width:13, height:13, background:checked?(t.isDark?"#0A0800":"#fff"):t.isDark?"#fff":"#9CA3AF", borderRadius:"50%", transition:"left 0.18s, background 0.18s", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
+      <div onClick={onChange} style={{ position:"absolute", inset:0, background:checked?`linear-gradient(135deg, ${t.amber}, ${t.amberBright})`:t.surface3, borderRadius:11, border:`1px solid ${checked?t.amber:t.border}`, transition:"all 0.18s", boxShadow:checked?`0 0 8px ${t.amberGlow}`:t.shadowCard }}>
+        <div style={{ position:"absolute", top:3, left:checked?19:3, width:14, height:14, background:checked?(t.isDark?"#0A0800":"#fff"):t.isDark?"#fff":"#9CA3AF", borderRadius:"50%", transition:"left 0.18s, background 0.18s", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
       </div>
     </div>
     <div>
-      <div style={{ fontSize:12, color:t.text, fontWeight:500 }}>{label}</div>
-      {note && <div style={{ fontSize:10, color:t.textMuted, marginTop:1 }}>{note}</div>}
+      <div style={{ fontSize:13, color:t.text, fontWeight:500 }}>{label}</div>
+      {note && <div style={{ fontSize:13, color:t.textMuted, marginTop:2 }}>{note}</div>}
     </div>
   </label>
 );
 
 // Input field
 const Inp = ({ label, value, onChange, type="text", placeholder, note, t, right }) => (
-  <div style={{ marginBottom:13 }}>
+  <div style={{ marginBottom:14 }}>
     {label && (
       <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
         <ML t={t} mb={0}>{label}</ML>
-        {right && <span style={{ fontSize:9, color:t.textSub, fontFamily:"'JetBrains Mono',monospace" }}>{right}</span>}
+        {right && <span style={{ fontSize:13, color:t.textSub, fontFamily:"'JetBrains Mono',monospace" }}>{right}</span>}
       </div>
     )}
     <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
-      style={{ width:"100%", background:t.surface2, border:`1px solid ${t.border}`, borderRadius:8, padding:"8px 12px", color:t.text, fontFamily:"'DM Sans',sans-serif", fontSize:13, outline:"none", transition:"border-color 0.15s, box-shadow 0.15s" }}
+      style={{ width:"100%", background:t.surface2, border:`1px solid ${t.border}`, borderRadius:8, padding:"9px 13px", color:t.text, fontFamily:"'DM Sans',sans-serif", fontSize:14, outline:"none", transition:"border-color 0.15s, box-shadow 0.15s" }}
       onFocus={e=>{e.target.style.borderColor=t.borderFocus;e.target.style.boxShadow=`0 0 0 3px ${t.amberDim}`;}}
       onBlur={e=>{e.target.style.borderColor=t.border;e.target.style.boxShadow="none";}} />
-    {note && <div style={{ fontSize:10, color:t.textMuted, marginTop:3 }}>{note}</div>}
+    {note && <div style={{ fontSize:13, color:t.textMuted, marginTop:3 }}>{note}</div>}
   </div>
 );
 
 // Select
 const Sel = ({ label, value, onChange, options, t }) => (
-  <div style={{ marginBottom:13 }}>
+  <div style={{ marginBottom:14 }}>
     {label && <ML t={t}>{label}</ML>}
     <select value={value} onChange={e=>onChange(e.target.value)}
-      style={{ width:"100%", background:t.surface2, border:`1px solid ${t.border}`, borderRadius:8, padding:"8px 12px", color:t.text, fontFamily:"'DM Sans',sans-serif", fontSize:13, outline:"none", cursor:"pointer" }}
+      style={{ width:"100%", background:t.surface2, border:`1px solid ${t.border}`, borderRadius:8, padding:"9px 13px", color:t.text, fontFamily:"'DM Sans',sans-serif", fontSize:14, outline:"none", cursor:"pointer" }}
       onFocus={e=>{e.target.style.borderColor=t.borderFocus;}}
       onBlur={e=>{e.target.style.borderColor=t.border;}}>
       {options.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
@@ -531,10 +542,10 @@ const Sel = ({ label, value, onChange, options, t }) => (
 
 // Textarea
 const Txt = ({ label, value, onChange, rows=4, placeholder, t }) => (
-  <div style={{ marginBottom:13 }}>
+  <div style={{ marginBottom:14 }}>
     {label && <ML t={t}>{label}</ML>}
     <textarea value={value} onChange={e=>onChange(e.target.value)} rows={rows} placeholder={placeholder}
-      style={{ width:"100%", background:t.surface2, border:`1px solid ${t.border}`, borderRadius:8, padding:"8px 12px", color:t.text, fontFamily:"'DM Sans',sans-serif", fontSize:13, outline:"none", resize:"vertical", lineHeight:1.65, transition:"border-color 0.15s, box-shadow 0.15s" }}
+      style={{ width:"100%", background:t.surface2, border:`1px solid ${t.border}`, borderRadius:8, padding:"9px 13px", color:t.text, fontFamily:"'DM Sans',sans-serif", fontSize:14, outline:"none", resize:"vertical", lineHeight:1.65, transition:"border-color 0.15s, box-shadow 0.15s" }}
       onFocus={e=>{e.target.style.borderColor=t.borderFocus;e.target.style.boxShadow=`0 0 0 3px ${t.amberDim}`;}}
       onBlur={e=>{e.target.style.borderColor=t.border;e.target.style.boxShadow="none";}} />
   </div>
@@ -552,10 +563,10 @@ const Btn = ({ children, onClick, variant="primary", sm, disabled, loading, full
   const s = styles[variant] || styles.primary;
   return (
     <button onClick={onClick} disabled={disabled||loading} title={title}
-      style={{ background:s.bg, color:s.color, border:s.border||"none", borderRadius:8, padding:sm?"4px 11px":"8px 16px", fontSize:sm?10:12, fontFamily:"'DM Sans',sans-serif", fontWeight:600, cursor:disabled||loading?"not-allowed":"pointer", opacity:disabled?0.45:1, letterSpacing:"0.02em", width:full?"100%":"auto", display:"inline-flex", alignItems:"center", justifyContent:"center", gap:5, boxShadow:disabled?"none":s.shadow, transition:"all 0.14s ease" }}
+      style={{ background:s.bg, color:s.color, border:s.border||"none", borderRadius:8, padding:sm?"5px 13px":"9px 18px", fontSize:sm?11:13, fontFamily:"'DM Sans',sans-serif", fontWeight:600, cursor:disabled||loading?"not-allowed":"pointer", opacity:disabled?0.45:1, letterSpacing:"0.02em", width:full?"100%":"auto", display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6, boxShadow:disabled?"none":s.shadow, transition:"all 0.14s ease" }}
       onMouseEnter={e=>{if(!disabled&&!loading){e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.filter="brightness(1.06)";}}}
       onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.filter="none";}}>
-      {loading ? <><span style={{ animation:"spin 0.8s linear infinite", display:"inline-block", fontSize:12 }}>◌</span> Processing…</> : <>{icon&&<span style={{ fontSize:sm?11:13 }}>{icon}</span>}{children}</>}
+      {loading ? <><span style={{ animation:"spin 0.8s linear infinite", display:"inline-block", fontSize:13 }}>◌</span> Processing…</> : <>{icon&&<span style={{ fontSize:sm?11:13 }}>{icon}</span>}{children}</>}
     </button>
   );
 };
@@ -582,8 +593,8 @@ function AxiomLogo({ t, size=32, showText=true, collapsed=false }) {
       </svg>
       {showText && !collapsed && (
         <div>
-          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:18, fontWeight:800, color:t.amber, letterSpacing:"0.14em", lineHeight:1, textShadow:`0 0 18px ${t.amberGlow}` }}>AXIOM</div>
-          <div style={{ fontSize:8, color:t.textMuted, fontFamily:"'JetBrains Mono',monospace", letterSpacing:"0.16em", textTransform:"uppercase", marginTop:1 }}>v5 · FIDIC 2017</div>
+          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:20, fontWeight:800, color:t.amber, letterSpacing:"0.14em", lineHeight:1, textShadow:`0 0 18px ${t.amberGlow}` }}>AXIOM</div>
+          <div style={{ fontSize:10, color:t.textMuted, fontFamily:"'JetBrains Mono',monospace", letterSpacing:"0.16em", textTransform:"uppercase", marginTop:2 }}>v5 · FIDIC 2017</div>
         </div>
       )}
     </div>
@@ -604,24 +615,16 @@ const NAV_ITEMS = [
 ];
 
 function Sidebar({ view, setView, t, collapsed, onToggle, result }) {
-  const SIDEBAR_W = collapsed ? 60 : 220;
+  const SIDEBAR_W = collapsed ? 64 : 228;
   return (
     <div style={{ width:SIDEBAR_W, flexShrink:0, height:"100vh", background:t.surface, borderRight:`1px solid ${t.border}`, display:"flex", flexDirection:"column", transition:"width 0.2s ease", overflow:"hidden", position:"sticky", top:0 }}>
       {/* Logo area */}
-      <div style={{ padding: collapsed ? "18px 14px" : "18px 20px", borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent: collapsed ? "center" : "space-between" }}>
-        <AxiomLogo t={t} size={28} collapsed={collapsed} />
-        {!collapsed && (
-          <button onClick={onToggle} style={{ background:"none", border:"none", cursor:"pointer", color:t.textMuted, fontSize:14, padding:4, display:"flex", alignItems:"center", lineHeight:1 }}
-            onMouseEnter={e=>{e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.color=t.textMuted;}}>
-            ◁
-          </button>
-        )}
-        {collapsed && (
-          <button onClick={onToggle} style={{ position:"absolute", top:20, right:8, background:"none", border:"none", cursor:"pointer", color:t.textMuted, fontSize:12, padding:2, lineHeight:1 }}
-            onMouseEnter={e=>{e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.color=t.textMuted;}}>
-            ▷
-          </button>
-        )}
+      <div style={{ padding: collapsed ? "14px 0" : "16px 20px", borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent: collapsed ? "center" : "space-between", flexDirection: collapsed ? "column" : "row", gap: collapsed ? 6 : 0, minHeight: collapsed ? 72 : "auto" }}>
+        <AxiomLogo t={t} size={collapsed ? 30 : 30} collapsed={collapsed} />
+        <button onClick={onToggle} style={{ background:"none", border:"none", cursor:"pointer", color:t.textMuted, fontSize:15, padding:4, display:"flex", alignItems:"center", lineHeight:1, flexShrink:0 }}
+          onMouseEnter={e=>{e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.color=t.textMuted;}}>
+          {collapsed ? "▷" : "◁"}
+        </button>
       </div>
 
       {/* Nav items */}
@@ -630,12 +633,12 @@ function Sidebar({ view, setView, t, collapsed, onToggle, result }) {
           const active = view === item.id;
           return (
             <button key={item.id} onClick={() => setView(item.id)} className="sidebar-nav-item"
-              style={{ display:"flex", alignItems:"center", gap: collapsed ? 0 : 10, width:"100%", padding: collapsed ? "10px 0" : "9px 12px", marginBottom:2, background: active ? t.amberDim : "transparent", border:`1px solid ${active ? t.amberBorder : "transparent"}`, borderRadius:8, color: active ? t.amber : t.textSub, fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight: active ? 600 : 400, cursor:"pointer", textAlign:"left", justifyContent: collapsed ? "center" : "flex-start", letterSpacing:"0.01em", position:"relative" }}>
-              <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:collapsed ? 16 : 13, lineHeight:1, flexShrink:0 }} title={collapsed ? item.label : ""}>{item.icon}</span>
+              style={{ display:"flex", alignItems:"center", gap: collapsed ? 0 : 11, width:"100%", padding: collapsed ? "11px 0" : "10px 13px", marginBottom:3, background: active ? t.amberDim : "transparent", border:`1px solid ${active ? t.amberBorder : "transparent"}`, borderRadius:8, color: active ? t.amber : t.textSub, fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight: active ? 600 : 400, cursor:"pointer", textAlign:"left", justifyContent: collapsed ? "center" : "flex-start", letterSpacing:"0.01em", position:"relative" }}>
+              <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:collapsed ? 18 : 15, lineHeight:1, flexShrink:0 }} title={collapsed ? item.label : ""}>{item.icon}</span>
               {!collapsed && <span>{item.label}</span>}
               {/* Active indicator dot */}
               {active && !collapsed && (
-                <span style={{ marginLeft:"auto", width:5, height:5, borderRadius:"50%", background:t.amber, boxShadow:`0 0 6px ${t.amber}88` }} />
+                <span style={{ marginLeft:"auto", width:6, height:6, borderRadius:"50%", background:t.amber, boxShadow:`0 0 6px ${t.amber}88` }} />
               )}
             </button>
           );
@@ -645,9 +648,9 @@ function Sidebar({ view, setView, t, collapsed, onToggle, result }) {
       {/* Bottom status */}
       {!collapsed && result && (
         <div style={{ padding:"10px 12px", borderTop:`1px solid ${t.border}`, margin:"0 8px 8px" }}>
-          <div style={{ fontSize:9, fontFamily:"'JetBrains Mono',monospace", color:t.textMuted, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:5 }}>Last Analysis</div>
+          <div style={{ fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:t.textMuted, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:5 }}>Last Analysis</div>
           <OutcomeChip outcome={result.ruleResult.outcome} t={t} />
-          <div style={{ fontSize:10, color:t.textMuted, marginTop:4, fontFamily:"'JetBrains Mono',monospace" }}>{result.ruleResult.quantum.recommended}d · {result.ruleResult.confidence}%</div>
+          <div style={{ fontSize:13, color:t.textMuted, marginTop:4, fontFamily:"'JetBrains Mono',monospace" }}>{result.ruleResult.quantum.recommended}d · {result.ruleResult.confidence}%</div>
         </div>
       )}
 
@@ -679,32 +682,32 @@ function Header({ view, t, isDark, setIsDark, onOpenChat, result }) {
   const page = pageInfo[view] || pageInfo.dashboard;
 
   return (
-    <header style={{ height:52, borderBottom:`1px solid ${t.border}`, background:t.glass, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", display:"flex", alignItems:"center", padding:"0 20px", gap:16, position:"sticky", top:0, zIndex:50 }}>
+    <header style={{ height:58, borderBottom:`1px solid ${t.border}`, background:t.glass, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", display:"flex", alignItems:"center", padding:"0 22px", gap:16, position:"sticky", top:0, zIndex:50 }}>
       <div style={{ flex:1 }}>
-        <div style={{ fontSize:15, fontWeight:700, color:t.text, lineHeight:1 }}>{page.title}</div>
-        <div style={{ fontSize:10, color:t.textMuted, marginTop:2 }}>{page.sub}</div>
+        <div style={{ fontSize:16, fontWeight:700, color:t.text, lineHeight:1 }}>{page.title}</div>
+        <div style={{ fontSize:13, color:t.textMuted, marginTop:2 }}>{page.sub}</div>
       </div>
 
       {/* Pipeline flow (compact) */}
       <div style={{ display:"flex", alignItems:"center", gap:4, marginRight:8 }}>
         {[{b:"Neural",c:t.violet},{b:"KG",c:t.cyan},{b:"Symbolic",c:t.emerald},{b:"XAI",c:t.amber}].map(({b,c},i,arr)=>(
           <span key={b} style={{ display:"flex", alignItems:"center", gap:4 }}>
-            <span style={{ padding:"2px 7px", background:c+"14", border:`1px solid ${c}28`, borderRadius:4, fontSize:9, fontFamily:"'JetBrains Mono',monospace", color:c, fontWeight:700 }}>{b}</span>
-            {i<arr.length-1 && <span style={{ color:t.textGhost, fontSize:9 }}>→</span>}
+            <span style={{ padding:"3px 8px", background:c+"14", border:`1px solid ${c}28`, borderRadius:4, fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:c, fontWeight:700 }}>{b}</span>
+            {i<arr.length-1 && <span style={{ color:t.textGhost, fontSize:13 }}>→</span>}
           </span>
         ))}
       </div>
 
       {/* AI Chat button */}
       <button onClick={onOpenChat}
-        style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 11px", background:t.violetGlow, border:`1px solid ${t.violet}30`, borderRadius:8, color:t.violet, fontSize:11, fontFamily:"'DM Sans',sans-serif", fontWeight:600, cursor:"pointer" }}
+        style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 13px", background:t.violetGlow, border:`1px solid ${t.violet}30`, borderRadius:8, color:t.violet, fontSize:13, fontFamily:"'DM Sans',sans-serif", fontWeight:600, cursor:"pointer" }}
         onMouseEnter={e=>{e.currentTarget.style.background=t.violet+"25";}} onMouseLeave={e=>{e.currentTarget.style.background=t.violetGlow;}}>
-        <span>⬡</span> AI Assistant
+        <span style={{ fontSize:14 }}>⬡</span> AI Assistant
       </button>
 
       {/* Theme toggle */}
       <button onClick={() => setIsDark(d => !d)}
-        style={{ width:34, height:34, borderRadius:8, background:t.surface2, border:`1px solid ${t.border}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, color:t.textSub, flexShrink:0 }}
+        style={{ width:36, height:36, borderRadius:8, background:t.surface2, border:`1px solid ${t.border}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, color:t.textSub, flexShrink:0 }}
         title={isDark ? "Switch to light mode" : "Switch to dark mode"}
         onMouseEnter={e=>{e.currentTarget.style.borderColor=t.amber;e.currentTarget.style.color=t.amber;}}
         onMouseLeave={e=>{e.currentTarget.style.borderColor=t.border;e.currentTarget.style.color=t.textSub;}}>
@@ -724,16 +727,22 @@ function ChatPanel({ t, onClose, result }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [msgs]);
 
-  async function send() {
-    if(!input.trim() || loading) return;
+  // Refocus input after loading completes
+  useEffect(() => {
+    if(!loading) { setTimeout(() => inputRef.current?.focus(), 50); }
+  }, [loading]);
+
+  const send = useCallback(async () => {
     const userMsg = input.trim();
+    if(!userMsg || loading) return;
     setInput("");
-    setMsgs(m => [...m, { role:"user", text:userMsg }]);
+    setMsgs(prev => [...prev, { role:"user", text:userMsg }]);
     setLoading(true);
 
     const contextInfo = result ? `
@@ -759,37 +768,37 @@ ${contextInfo}
 Be concise, professional, and helpful. Use clause references (e.g., §20.2.1) where relevant. Keep responses under 300 words unless detail is truly needed.`;
 
       const history = msgs.map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.text }));
-      const res = await fetch("https://axiom-proxy.axiomeot.workers.dev", {
+      const res = await fetch(PROXY_URL, {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:600, system:sys, messages:[...history, {role:"user", content:userMsg}] })
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("") || "Sorry, I couldn't generate a response.";
-      setMsgs(m => [...m, { role:"assistant", text }]);
+      setMsgs(prev => [...prev, { role:"assistant", text }]);
     } catch(_) {
-      setMsgs(m => [...m, { role:"assistant", text:"Connection unavailable. Please check your API access." }]);
+      setMsgs(prev => [...prev, { role:"assistant", text:"Connection unavailable. Please check your API access." }]);
     }
     setLoading(false);
-  }
+  }, [input, loading, msgs, result]);
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%", background:t.surface, borderLeft:`1px solid ${t.border}` }}>
       {/* Header */}
-      <div style={{ padding:"14px 16px", borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", background:t.surface2 }}>
+      <div style={{ padding:"15px 18px", borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", background:t.surface2 }}>
         <div>
-          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:t.violet, fontWeight:700, letterSpacing:"0.1em" }}>⬡ AI ASSISTANT</div>
-          <div style={{ fontSize:10, color:t.textMuted, marginTop:1 }}>FIDIC 2017 · Contextual guidance</div>
+          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:t.violet, fontWeight:700, letterSpacing:"0.1em" }}>⬡ AI ASSISTANT</div>
+          <div style={{ fontSize:13, color:t.textMuted, marginTop:2 }}>FIDIC 2017 · Contextual guidance</div>
         </div>
-        <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", color:t.textMuted, fontSize:18, lineHeight:1, padding:2 }}
+        <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", color:t.textMuted, fontSize:20, lineHeight:1, padding:4 }}
           onMouseEnter={e=>{e.currentTarget.style.color=t.text;}} onMouseLeave={e=>{e.currentTarget.style.color=t.textMuted;}}>✕</button>
       </div>
 
       {/* Quick prompts */}
-      <div style={{ padding:"10px 12px", borderBottom:`1px solid ${t.border}`, display:"flex", gap:4, flexWrap:"wrap" }}>
+      <div style={{ padding:"10px 14px", borderBottom:`1px solid ${t.border}`, display:"flex", gap:5, flexWrap:"wrap" }}>
         {["What is §20.2.1?","Explain time bars","How is EOT calculated?","What is KG?"].map(q=>(
-          <button key={q} onClick={()=>setInput(q)}
-            style={{ padding:"3px 8px", background:t.surface3, border:`1px solid ${t.border}`, borderRadius:12, fontSize:9, color:t.textSub, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", whiteSpace:"nowrap" }}
+          <button key={q} onClick={()=>{ setInput(q); setTimeout(()=>inputRef.current?.focus(),50); }}
+            style={{ padding:"4px 10px", background:t.surface3, border:`1px solid ${t.border}`, borderRadius:12, fontSize:13, color:t.textSub, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", whiteSpace:"nowrap" }}
             onMouseEnter={e=>{e.currentTarget.style.borderColor=t.violet+"44";e.currentTarget.style.color=t.violet;}}
             onMouseLeave={e=>{e.currentTarget.style.borderColor=t.border;e.currentTarget.style.color=t.textSub;}}>
             {q}
@@ -798,31 +807,33 @@ Be concise, professional, and helpful. Use clause references (e.g., §20.2.1) wh
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+      <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"14px 16px", display:"flex", flexDirection:"column", gap:12 }}>
         {msgs.map((m,i)=>(
           <div key={i} style={{ display:"flex", justifyContent: m.role==="user" ? "flex-end" : "flex-start" }}>
-            <div style={{ maxWidth:"88%", padding:"9px 12px", borderRadius: m.role==="user" ? "12px 12px 4px 12px" : "4px 12px 12px 12px", background: m.role==="user" ? `linear-gradient(135deg, ${t.amber}CC, ${t.amberBright}AA)` : t.surface2, color: m.role==="user" ? (t.isDark?"#0A0800":"#fff") : t.text, fontSize:12, lineHeight:1.65, border: m.role==="user" ? "none" : `1px solid ${t.border}` }}>
-              <pre style={{ fontFamily:"'DM Sans',sans-serif", whiteSpace:"pre-wrap", margin:0 }}>{m.text}</pre>
+            <div style={{ maxWidth:"88%", padding:"10px 14px", borderRadius: m.role==="user" ? "12px 12px 4px 12px" : "4px 12px 12px 12px", background: m.role==="user" ? `linear-gradient(135deg, ${t.amber}CC, ${t.amberBright}AA)` : t.surface2, color: m.role==="user" ? (t.isDark?"#0A0800":"#fff") : t.text, fontSize:13, lineHeight:1.7, border: m.role==="user" ? "none" : `1px solid ${t.border}` }}>
+              <pre style={{ fontFamily:"'DM Sans',sans-serif", whiteSpace:"pre-wrap", margin:0, fontSize:13 }}>{m.text}</pre>
             </div>
           </div>
         ))}
         {loading && (
           <div style={{ display:"flex", justifyContent:"flex-start" }}>
-            <div style={{ padding:"9px 14px", background:t.surface2, borderRadius:"4px 12px 12px 12px", border:`1px solid ${t.border}` }}>
-              <span style={{ animation:"pulse 1.2s infinite", display:"inline-block", color:t.violet, fontSize:14 }}>◌◌◌</span>
+            <div style={{ padding:"10px 16px", background:t.surface2, borderRadius:"4px 12px 12px 12px", border:`1px solid ${t.border}` }}>
+              <span style={{ animation:"pulse 1.2s infinite", display:"inline-block", color:t.violet, fontSize:16 }}>◌◌◌</span>
             </div>
           </div>
         )}
       </div>
 
       {/* Input */}
-      <div style={{ padding:"10px 12px", borderTop:`1px solid ${t.border}`, display:"flex", gap:8 }}>
-        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
+      <div style={{ padding:"12px 14px", borderTop:`1px solid ${t.border}`, display:"flex", gap:8 }}>
+        <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
+          onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); send(); } }}
           placeholder="Ask about FIDIC 2017, EOT, clauses…"
-          style={{ flex:1, background:t.surface2, border:`1px solid ${t.border}`, borderRadius:8, padding:"7px 11px", color:t.text, fontFamily:"'DM Sans',sans-serif", fontSize:12, outline:"none" }}
+          disabled={loading}
+          style={{ flex:1, background:t.surface2, border:`1px solid ${t.border}`, borderRadius:8, padding:"9px 13px", color:t.text, fontFamily:"'DM Sans',sans-serif", fontSize:13, outline:"none", opacity: loading ? 0.7 : 1 }}
           onFocus={e=>{e.target.style.borderColor=t.violet+"66";}} onBlur={e=>{e.target.style.borderColor=t.border;}} />
         <button onClick={send} disabled={!input.trim()||loading}
-          style={{ padding:"7px 12px", background:`linear-gradient(135deg, ${t.violet}, ${t.violet}CC)`, border:"none", borderRadius:8, color:"#fff", cursor:!input.trim()||loading?"not-allowed":"pointer", opacity:!input.trim()||loading?0.4:1, fontSize:13 }}>
+          style={{ padding:"9px 14px", background:`linear-gradient(135deg, ${t.violet}, ${t.violet}CC)`, border:"none", borderRadius:8, color:"#fff", cursor:!input.trim()||loading?"not-allowed":"pointer", opacity:!input.trim()||loading?0.4:1, fontSize:16, fontWeight:700 }}>
           →
         </button>
       </div>
@@ -848,7 +859,7 @@ function AnalysisOverlay({ stage, t }) {
         <div style={{ textAlign:"center", marginBottom:28 }}>
           <AxiomLogo t={t} size={36} />
           <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:20, fontWeight:700, color:t.text, letterSpacing:"-0.02em", marginTop:14 }}>Analysing Claim…</div>
-          <div style={{ fontSize:11, color:t.textMuted, marginTop:4 }}>Neurosymbolic pipeline running</div>
+          <div style={{ fontSize:13, color:t.textMuted, marginTop:4 }}>Neurosymbolic pipeline running</div>
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           {stages.map(s => {
@@ -857,11 +868,11 @@ function AnalysisOverlay({ stage, t }) {
             return (
               <div key={s.n} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 14px", background:active?s.color+"14":done?t.surface2:t.surface, borderRadius:10, border:`1px solid ${active?s.color+"44":done?t.border+"88":t.border+"44"}`, transition:"all 0.25s" }}>
                 <div style={{ width:32, height:32, borderRadius:8, background:active?s.color+"20":done?t.surface3:t.surface2, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color:active?s.color:done?t.textSub:t.textMuted, flexShrink:0, border:`1px solid ${active?s.color+"44":t.border}` }}>
-                  {done ? <span style={{ color:t.emerald }}>✓</span> : active ? <span style={{ animation:"spin 1s linear infinite", display:"inline-block", fontSize:12, color:s.color }}>◌</span> : <span>{s.icon}</span>}
+                  {done ? <span style={{ color:t.emerald }}>✓</span> : active ? <span style={{ animation:"spin 1s linear infinite", display:"inline-block", fontSize:13, color:s.color }}>◌</span> : <span>{s.icon}</span>}
                 </div>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:active?s.color:done?t.text:t.textMuted }}>{s.label}</div>
-                  <div style={{ fontSize:10, color:t.textMuted, marginTop:1 }}>{s.sub}</div>
+                  <div style={{ fontSize:13, fontWeight:600, color:active?s.color:done?t.text:t.textMuted }}>{s.label}</div>
+                  <div style={{ fontSize:13, color:t.textMuted, marginTop:1 }}>{s.sub}</div>
                 </div>
                 {active && <div style={{ width:44 }}><ProgressBar value={60} t={t} color={s.color} animated /></div>}
                 {done && <Badge t={t} color={t.emerald} sm>✓</Badge>}
@@ -889,7 +900,7 @@ function ComplianceTimeline({ noticeDays, detailDays, t }) {
     <div style={{ marginBottom:16 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
         <ML t={t} mb={0}>Deadline Timeline</ML>
-        <span style={{ fontSize:9, fontFamily:"'JetBrains Mono',monospace", color:t.textMuted }}>Days from awareness (0–90)</span>
+        <span style={{ fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:t.textMuted }}>Days from awareness (0–90)</span>
       </div>
       <div style={{ position:"relative", height:28, marginBottom:20 }}>
         {/* Track */}
@@ -919,12 +930,12 @@ function ComplianceTimeline({ noticeDays, detailDays, t }) {
       </div>
       <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
         {nd !== null && (
-          <div style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px", borderRadius:20, background:nd<=28?t.emeraldGlow:t.roseGlow, border:`1px solid ${nd<=28?t.emerald:t.rose}33`, fontSize:10, fontFamily:"'JetBrains Mono',monospace", color:nd<=28?t.emerald:t.rose, fontWeight:600 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px", borderRadius:20, background:nd<=28?t.emeraldGlow:t.roseGlow, border:`1px solid ${nd<=28?t.emerald:t.rose}33`, fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:nd<=28?t.emerald:t.rose, fontWeight:600 }}>
             {nd<=28?"✓":"⛔"} Notice: {nd}d {nd<=28?`(${28-nd}d remaining)`:`(${nd-28}d OVERDUE)`}
           </div>
         )}
         {dd !== null && (
-          <div style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px", borderRadius:20, background:dd<=84?t.amberGlow:t.roseGlow, border:`1px solid ${dd<=84?t.amber:t.rose}33`, fontSize:10, fontFamily:"'JetBrains Mono',monospace", color:dd<=84?t.amber:t.rose, fontWeight:600 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px", borderRadius:20, background:dd<=84?t.amberGlow:t.roseGlow, border:`1px solid ${dd<=84?t.amber:t.rose}33`, fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:dd<=84?t.amber:t.rose, fontWeight:600 }}>
             {dd<=84?"✓":"⛔"} Claim: {dd}d {dd<=84?`(${84-dd}d remaining)`:`(${dd-84}d OVERDUE)`}
           </div>
         )}
@@ -944,10 +955,10 @@ function DashboardView({ result, history, t, onNavigate }) {
     <Card t={t} style={{ padding:18 }} className="card-anim">
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:12 }}>
         <div style={{ width:36, height:36, borderRadius:8, background:(color||t.amber)+"18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, color:color||t.amber, border:`1px solid ${(color||t.amber)}28` }}>{icon}</div>
-        {sub && <span style={{ fontSize:9, color:t.textMuted, fontFamily:"'JetBrains Mono',monospace" }}>{sub}</span>}
+        {sub && <span style={{ fontSize:13, color:t.textMuted, fontFamily:"'JetBrains Mono',monospace" }}>{sub}</span>}
       </div>
       <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:26, fontWeight:700, color:color||t.amber, lineHeight:1, marginBottom:4 }}>{value}</div>
-      <div style={{ fontSize:11, color:t.textMuted, letterSpacing:"0.02em" }}>{label}</div>
+      <div style={{ fontSize:13, color:t.textMuted, letterSpacing:"0.02em" }}>{label}</div>
     </Card>
   );
 
@@ -1009,7 +1020,7 @@ function DashboardView({ result, history, t, onNavigate }) {
                 ].map(([k,v,c])=>(
                   <div key={k} style={{ padding:"8px 10px", background:t.surface2, borderRadius:6, border:`1px solid ${t.border}` }}>
                     <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:14, fontWeight:700, color:c }}>{v}</div>
-                    <div style={{ fontSize:9, color:t.textMuted, marginTop:2, fontFamily:"'JetBrains Mono',monospace", textTransform:"uppercase", letterSpacing:"0.06em" }}>{k}</div>
+                    <div style={{ fontSize:13, color:t.textMuted, marginTop:2, fontFamily:"'JetBrains Mono',monospace", textTransform:"uppercase", letterSpacing:"0.06em" }}>{k}</div>
                   </div>
                 ))}
               </div>
@@ -1039,8 +1050,8 @@ function DashboardView({ result, history, t, onNavigate }) {
             <div key={s.label} style={{ display:"flex", gap:10, padding:"8px 0", borderBottom: i<arr.length-1 ? `1px solid ${t.border}` : "none", alignItems:"flex-start" }}>
               <div style={{ width:30, height:30, borderRadius:6, background:s.color+"16", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, color:s.color, flexShrink:0, border:`1px solid ${s.color}28`, marginTop:2 }}>{s.icon}</div>
               <div style={{ flex:1 }}>
-                <div style={{ fontSize:12, fontWeight:600, color:t.text }}>{s.label}</div>
-                <div style={{ fontSize:10, color:t.textMuted, marginTop:2, lineHeight:1.5 }}>{s.desc}</div>
+                <div style={{ fontSize:13, fontWeight:600, color:t.text }}>{s.label}</div>
+                <div style={{ fontSize:13, color:t.textMuted, marginTop:2, lineHeight:1.5 }}>{s.desc}</div>
               </div>
             </div>
           ))}
@@ -1067,8 +1078,8 @@ function DashboardView({ result, history, t, onNavigate }) {
           ].map(r=>(
             <div key={r.cl} style={{ padding:"8px 10px", background:t.surface2, borderRadius:8, border:`1px solid ${r.critical?t.rose+"44":t.border}`, display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
               <div>
-                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:r.critical?t.rose:t.amber, fontWeight:700 }}>{r.cl}</span>
-                <div style={{ fontSize:10, color:t.textSub, marginTop:2 }}>{r.title}</div>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:r.critical?t.rose:t.amber, fontWeight:700 }}>{r.cl}</span>
+                <div style={{ fontSize:13, color:t.textSub, marginTop:2 }}>{r.title}</div>
               </div>
               <span style={{ fontSize:8, fontFamily:"'JetBrains Mono',monospace", color:t.textMuted }}>{r.rule}</span>
             </div>
@@ -1165,22 +1176,22 @@ function AnalyseView({ onResult, t }) {
               <div>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
                   <ML t={t} mb={0}>Documents (PDF / Images)</ML>
-                  {files.length>0 && <span style={{ fontSize:10, color:t.emerald, fontFamily:"'JetBrains Mono',monospace" }}>{files.length} attached</span>}
+                  {files.length>0 && <span style={{ fontSize:13, color:t.emerald, fontFamily:"'JetBrains Mono',monospace" }}>{files.length} attached</span>}
                 </div>
                 <input ref={fileRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg" onChange={handleFiles} style={{ display:"none" }} />
                 <div onClick={()=>fileRef.current.click()}
                   style={{ border:`2px dashed ${t.border}`, borderRadius:8, padding:"12px 16px", cursor:"pointer", textAlign:"center", background:t.surface2, transition:"all 0.14s" }}
                   onMouseEnter={e=>{e.currentTarget.style.borderColor=t.borderFocus;e.currentTarget.style.background=t.surface3;}}
                   onMouseLeave={e=>{e.currentTarget.style.borderColor=t.border;e.currentTarget.style.background=t.surface2;}}>
-                  <div style={{ fontSize:12, color:t.textSub }}>⊕  Click to attach PDF or image files</div>
-                  <div style={{ fontSize:10, color:t.textMuted, marginTop:2 }}>LLM will extract EOT facts from uploaded documents</div>
+                  <div style={{ fontSize:13, color:t.textSub }}>⊕  Click to attach PDF or image files</div>
+                  <div style={{ fontSize:13, color:t.textMuted, marginTop:2 }}>LLM will extract EOT facts from uploaded documents</div>
                 </div>
                 {files.length>0 && (
                   <div style={{ marginTop:7, display:"flex", flexWrap:"wrap", gap:4 }}>
                     {files.map((f,i)=>(
-                      <div key={i} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 9px", background:t.surface3, border:`1px solid ${t.border}`, borderRadius:16, fontSize:10, color:t.textSub }}>
+                      <div key={i} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 9px", background:t.surface3, border:`1px solid ${t.border}`, borderRadius:16, fontSize:13, color:t.textSub }}>
                         📄 {f.name.slice(0,18)}
-                        <span onClick={()=>setFiles(p=>p.filter((_,j)=>j!==i))} style={{ cursor:"pointer", color:t.rose, marginLeft:2, fontSize:11 }}>✕</span>
+                        <span onClick={()=>setFiles(p=>p.filter((_,j)=>j!==i))} style={{ cursor:"pointer", color:t.rose, marginLeft:2, fontSize:13 }}>✕</span>
                       </div>
                     ))}
                   </div>
@@ -1195,11 +1206,11 @@ function AnalyseView({ onResult, t }) {
                   <Badge t={t} color={t.violet} sm>§18.2 Required</Badge>
                   <ML t={t} color={t.violet} mb={0}>Force Majeure — Dual Notice Requirement</ML>
                 </div>
-                <p style={{ fontSize:11, color:t.textSub, lineHeight:1.65, marginBottom:10 }}>Force Majeure requires <strong style={{ color:t.text }}>two separate notices</strong>: the §18.2 Exceptional Event Notice (14 days) AND the §20.2.1 EOT Notice (28 days).</p>
+                <p style={{ fontSize:13, color:t.textSub, lineHeight:1.65, marginBottom:10 }}>Force Majeure requires <strong style={{ color:t.text }}>two separate notices</strong>: the §18.2 Exceptional Event Notice (14 days) AND the §20.2.1 EOT Notice (28 days).</p>
                 {[{v:true,l:"§18.2 Notice given within 14 days"},{v:false,l:"§18.2 Notice NOT given (or unknown)"}].map(opt=>(
                   <label key={String(opt.v)} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, cursor:"pointer" }}>
                     <input type="radio" name="fm_notice" checked={form.force_majeure_notice_given===opt.v} onChange={()=>upd("force_majeure_notice_given",opt.v)} />
-                    <span style={{ fontSize:12, color:opt.v===false?t.rose:t.text }}>{opt.l}</span>
+                    <span style={{ fontSize:13, color:opt.v===false?t.rose:t.text }}>{opt.l}</span>
                   </label>
                 ))}
               </Card>
@@ -1212,11 +1223,11 @@ function AnalyseView({ onResult, t }) {
                   <Badge t={t} color={t.amber} sm>§1.9/§2.1</Badge>
                   <ML t={t} color={t.amber} mb={0}>Prior Notice to Engineer</ML>
                 </div>
-                <p style={{ fontSize:11, color:t.textSub, lineHeight:1.65, marginBottom:10 }}>§1.9/§2.1 requires the Contractor to notify the Engineer in advance that drawings or site access are required by a specific date.</p>
+                <p style={{ fontSize:13, color:t.textSub, lineHeight:1.65, marginBottom:10 }}>§1.9/§2.1 requires the Contractor to notify the Engineer in advance that drawings or site access are required by a specific date.</p>
                 {[{v:true,l:"Prior notice given — Engineer was notified in advance"},{v:false,l:"Prior notice NOT given / not documented"}].map(opt=>(
                   <label key={String(opt.v)} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, cursor:"pointer" }}>
                     <input type="radio" name="prior_notice" checked={form.prior_notice_given===opt.v} onChange={()=>upd("prior_notice_given",opt.v)} />
-                    <span style={{ fontSize:12, color:opt.v===false?t.orange:t.text }}>{opt.l}</span>
+                    <span style={{ fontSize:13, color:opt.v===false?t.orange:t.text }}>{opt.l}</span>
                   </label>
                 ))}
               </Card>
@@ -1227,7 +1238,7 @@ function AnalyseView({ onResult, t }) {
               <ML t={t}>Extraction Mode</ML>
               <Toggle checked={!form._forceHeuristic} onChange={()=>setF(p=>({...p,_forceHeuristic:!p._forceHeuristic}))} t={t}
                 label="LLM Extraction (Claude)" note="Recommended — Claude parses narrative & documents into structured claim data" />
-              {form._forceHeuristic && <div style={{ marginTop:6, padding:"6px 10px", background:t.surface3, borderRadius:6, fontSize:10, color:t.orange, fontFamily:"'JetBrains Mono',monospace" }}>Heuristic mode: keyword-based parsing · 100% symbolic · No API call</div>}
+              {form._forceHeuristic && <div style={{ marginTop:6, padding:"6px 10px", background:t.surface3, borderRadius:6, fontSize:13, color:t.orange, fontFamily:"'JetBrains Mono',monospace" }}>Heuristic mode: keyword-based parsing · 100% symbolic · No API call</div>}
             </Card>
           </div>
 
@@ -1284,7 +1295,7 @@ function AnalyseView({ onResult, t }) {
             <Btn full onClick={run} loading={loading} disabled={!form.delay_event && !form.narrative} t={t} icon="◈">
               Run Neurosymbolic Analysis
             </Btn>
-            <p style={{ textAlign:"center", fontSize:10, color:t.textMuted, marginTop:7, fontFamily:"'JetBrains Mono',monospace" }}>
+            <p style={{ textAlign:"center", fontSize:13, color:t.textMuted, marginTop:7, fontFamily:"'JetBrains Mono',monospace" }}>
               Narrative → LLM → KG (35N/41E) → 40 rules → XAI trace → Decision
             </p>
           </div>
@@ -1325,7 +1336,7 @@ function ResultsView({ result, onNewAnalysis, t }) {
           <div style={{ display:"flex", gap:16, alignItems:"center" }}>
             <ConfidenceArc pct={ruleResult.confidence} t={t} size={88} />
             <div>
-              <div style={{ fontSize:9, fontFamily:"'JetBrains Mono',monospace", color:t.textMuted, letterSpacing:"0.12em", marginBottom:6 }}>DETERMINATION OUTCOME</div>
+              <div style={{ fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:t.textMuted, letterSpacing:"0.12em", marginBottom:6 }}>DETERMINATION OUTCOME</div>
               <OutcomeChip outcome={ruleResult.outcome} t={t} lg />
               <div style={{ marginTop:8, display:"flex", gap:5, flexWrap:"wrap" }}>
                 {ruleResult.blocked && <Badge t={t} color={t.rose} sm>Time-Barred</Badge>}
@@ -1344,7 +1355,7 @@ function ResultsView({ result, onNewAnalysis, t }) {
             ].map(m=>(
               <div key={m.l} style={{ padding:"11px 13px", background:t.surface3, borderRadius:8, border:`1px solid ${t.border}` }}>
                 <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:18, fontWeight:700, color:m.c }}>{m.v}</div>
-                <div style={{ fontSize:9, color:t.textMuted, marginTop:3, fontFamily:"'JetBrains Mono',monospace", letterSpacing:"0.08em", textTransform:"uppercase" }}>{m.l}</div>
+                <div style={{ fontSize:13, color:t.textMuted, marginTop:3, fontFamily:"'JetBrains Mono',monospace", letterSpacing:"0.08em", textTransform:"uppercase" }}>{m.l}</div>
               </div>
             ))}
           </div>
@@ -1359,11 +1370,11 @@ function ResultsView({ result, onNewAnalysis, t }) {
         {/* Quantum deductions */}
         {ruleResult.quantum.deductions.length > 0 && (
           <div style={{ marginTop:14, padding:"9px 13px", background:t.surface3, borderRadius:8, border:`1px solid ${t.border}`, display:"flex", gap:14, alignItems:"center", flexWrap:"wrap" }}>
-            <span style={{ fontSize:11, color:t.textSub }}>Requested: <strong style={{ color:t.text }}>{ruleResult.quantum.requested}d</strong></span>
+            <span style={{ fontSize:13, color:t.textSub }}>Requested: <strong style={{ color:t.text }}>{ruleResult.quantum.requested}d</strong></span>
             {ruleResult.quantum.deductions.map((d,i)=>(
-              <span key={i} style={{ fontSize:10, color:t.rose }}>— {d.days}d ({d.reason.split("—")[0].trim()})</span>
+              <span key={i} style={{ fontSize:13, color:t.rose }}>— {d.days}d ({d.reason.split("—")[0].trim()})</span>
             ))}
-            <span style={{ fontSize:11, color:t.amber, fontWeight:700, marginLeft:"auto" }}>= {ruleResult.quantum.recommended}d recommended</span>
+            <span style={{ fontSize:13, color:t.amber, fontWeight:700, marginLeft:"auto" }}>= {ruleResult.quantum.recommended}d recommended</span>
           </div>
         )}
       </div>
@@ -1372,7 +1383,7 @@ function ResultsView({ result, onNewAnalysis, t }) {
       <div style={{ display:"flex", background:t.surface, border:`1px solid ${t.border}`, borderRadius:10, overflow:"hidden", marginBottom:14, boxShadow:t.shadowCard }}>
         {[["trace","§ Reasoning Trace"],["rules","◈ Rules Fired"],["quantum","⊙ Quantum"],["risk","⊛ Risk Map"]].map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
-            style={{ flex:1, padding:"9px 12px", background:tab===id?t.amberDim:"transparent", border:"none", borderRight:`1px solid ${t.border}`, color:tab===id?t.amber:t.textMuted, fontFamily:"'JetBrains Mono',monospace", fontSize:10, cursor:"pointer", letterSpacing:"0.06em", fontWeight:tab===id?700:400, transition:"background 0.12s, color 0.12s" }}>
+            style={{ flex:1, padding:"9px 12px", background:tab===id?t.amberDim:"transparent", border:"none", borderRight:`1px solid ${t.border}`, color:tab===id?t.amber:t.textMuted, fontFamily:"'JetBrains Mono',monospace", fontSize:13, cursor:"pointer", letterSpacing:"0.06em", fontWeight:tab===id?700:400, transition:"background 0.12s, color 0.12s" }}>
             {lbl}
           </button>
         ))}
@@ -1386,11 +1397,11 @@ function ResultsView({ result, onNewAnalysis, t }) {
                 <div style={{ width:32, height:32, borderRadius:7, background:step.color+"18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, color:step.color, flexShrink:0, border:`1px solid ${step.color}33` }}>{step.icon}</div>
                 <div style={{ flex:1 }}>
                   <div style={{ display:"flex", gap:5, alignItems:"center", flexWrap:"wrap" }}>
-                    <span style={{ fontSize:12, fontWeight:600, color:t.text }}>{step.label}</span>
+                    <span style={{ fontSize:13, fontWeight:600, color:t.text }}>{step.label}</span>
                     <Badge t={t} color={step.type==="neural"?t.violet:step.type==="decision"?t.amber:t.cyan} sm>{step.type}</Badge>
                     {step.blocking && <Badge t={t} color={t.rose} sm glow>BLOCKING</Badge>}
                   </div>
-                  <div style={{ fontSize:10, color:t.textMuted, marginTop:2 }}>{step.sub}</div>
+                  <div style={{ fontSize:13, color:t.textMuted, marginTop:2 }}>{step.sub}</div>
                 </div>
                 <div style={{ textAlign:"right", flexShrink:0 }}>
                   <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, fontWeight:700, color:step.confidence>=0.7?t.emerald:step.confidence>=0.5?t.amber:t.rose }}>{Math.round(step.confidence*100)}%</div>
@@ -1398,7 +1409,7 @@ function ResultsView({ result, onNewAnalysis, t }) {
                 </div>
               </div>
               {step.items.map((item,j)=>(
-                <div key={j} style={{ fontSize:11, color:item.startsWith("✓")?t.emerald:item.startsWith("⛔")?t.rose:item.startsWith("⚠")?t.amber:t.textSub, marginBottom:3, paddingLeft:8, lineHeight:1.65 }}>{item}</div>
+                <div key={j} style={{ fontSize:13, color:item.startsWith("✓")?t.emerald:item.startsWith("⛔")?t.rose:item.startsWith("⚠")?t.amber:t.textSub, marginBottom:3, paddingLeft:8, lineHeight:1.65 }}>{item}</div>
               ))}
             </div>
           ))}
@@ -1409,7 +1420,7 @@ function ResultsView({ result, onNewAnalysis, t }) {
         <div>
           <div style={{ marginBottom:10, display:"flex", gap:6, flexWrap:"wrap" }}>
             {Object.entries(catColors(t)).map(([cat,c])=>(
-              <span key={cat} style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"2px 7px", background:c+"14", border:`1px solid ${c}28`, borderRadius:4, fontSize:9, color:c, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, letterSpacing:"0.05em", textTransform:"uppercase" }}>
+              <span key={cat} style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"2px 7px", background:c+"14", border:`1px solid ${c}28`, borderRadius:4, fontSize:13, color:c, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, letterSpacing:"0.05em", textTransform:"uppercase" }}>
                 <span style={{ width:5,height:5,borderRadius:"50%",background:c,display:"inline-block" }}/> {cat} ({ruleResult.fired_rules.filter(r=>r.cat===cat).length})
               </span>
             ))}
@@ -1418,18 +1429,18 @@ function ResultsView({ result, onNewAnalysis, t }) {
             <div key={i} style={{ marginBottom:7, padding:11, background:t.surface, border:`1px solid ${r.csq?.block?t.rose+"44":t.border}`, borderRadius:8, borderLeft:`3px solid ${cats[r.cat]||t.border}`, animation:`fadeUp 0.14s ease ${i*0.025}s both` }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:5 }}>
                 <div style={{ display:"flex", gap:5, alignItems:"center", flexWrap:"wrap" }}>
-                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:t.amber, fontWeight:700 }}>{r.id}</span>
+                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:t.amber, fontWeight:700 }}>{r.id}</span>
                   <Badge t={t} color={cats[r.cat]||t.textMuted} sm>{r.cat}</Badge>
-                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:t.textMuted }}>§{r.cl}</span>
+                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:t.textMuted }}>§{r.cl}</span>
                   {r.csq?.block && <Badge t={t} color={t.rose} sm glow>BLOCKING</Badge>}
                 </div>
                 <div style={{ display:"flex", gap:7, alignItems:"center" }}>
-                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:(r.csq?.cd??0)>=0?t.emerald:t.rose, fontWeight:700 }}>{(r.csq?.cd??0)>=0?"+":""}{r.csq?.cd}</span>
-                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:r.conf_after>=0.7?t.emerald:r.conf_after>=0.5?t.amber:t.rose, fontWeight:700 }}>{Math.round(r.conf_after*100)}%</span>
+                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:(r.csq?.cd??0)>=0?t.emerald:t.rose, fontWeight:700 }}>{(r.csq?.cd??0)>=0?"+":""}{r.csq?.cd}</span>
+                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:r.conf_after>=0.7?t.emerald:r.conf_after>=0.5?t.amber:t.rose, fontWeight:700 }}>{Math.round(r.conf_after*100)}%</span>
                 </div>
               </div>
-              <div style={{ fontSize:12, color:t.text, fontWeight:600, marginBottom:3 }}>{r.name}</div>
-              <div style={{ fontSize:11, color:r.exp?.startsWith("✓")?t.emerald:r.exp?.startsWith("⛔")?t.rose:r.exp?.startsWith("⚠")?t.amber:t.textSub, lineHeight:1.65 }}>{r.exp}</div>
+              <div style={{ fontSize:13, color:t.text, fontWeight:600, marginBottom:3 }}>{r.name}</div>
+              <div style={{ fontSize:13, color:r.exp?.startsWith("✓")?t.emerald:r.exp?.startsWith("⛔")?t.rose:r.exp?.startsWith("⚠")?t.amber:t.textSub, lineHeight:1.65 }}>{r.exp}</div>
             </div>
           ))}
           {ruleResult.rules_fired===0 && <div style={{ textAlign:"center", padding:40, color:t.textMuted }}>No rules fired for this input.</div>}
@@ -1446,17 +1457,17 @@ function ResultsView({ result, onNewAnalysis, t }) {
             </div>
             {ruleResult.quantum.deductions.map((d,i)=>(
               <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:`1px solid ${t.border}` }}>
-                <span style={{ fontSize:11, color:t.textSub }}>− {d.reason}</span>
-                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:t.rose, fontWeight:600 }}>−{d.days} days</span>
+                <span style={{ fontSize:13, color:t.textSub }}>− {d.reason}</span>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:t.rose, fontWeight:600 }}>−{d.days} days</span>
               </div>
             ))}
-            {ruleResult.quantum.deductions.length===0 && <div style={{ padding:"7px 0", fontSize:11, color:t.textMuted }}>No deductions applied</div>}
+            {ruleResult.quantum.deductions.length===0 && <div style={{ padding:"7px 0", fontSize:13, color:t.textMuted }}>No deductions applied</div>}
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"11px 0 2px", marginTop:3 }}>
               <span style={{ fontSize:14, fontWeight:700, color:t.text }}>Recommended EOT Grant</span>
               <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:24, fontWeight:800, color:t.amber, textShadow:`0 0 16px ${t.amberGlow}` }}>{ruleResult.quantum.recommended} days</span>
             </div>
           </div>
-          <div style={{ padding:"9px 12px", background:t.surface2, borderRadius:8, fontSize:10, color:t.textMuted, fontFamily:"'JetBrains Mono',monospace", lineHeight:1.8 }}>
+          <div style={{ padding:"9px 12px", background:t.surface2, borderRadius:8, fontSize:13, color:t.textMuted, fontFamily:"'JetBrains Mono',monospace", lineHeight:1.8 }}>
             Deduction methodology (FIDIC 2017):<br/>
             · Concurrent contractor delay → indicative apportionment (actual requires TIA)<br/>
             · Programme not updated → 10% uncertainty reduction (§8.3)<br/>
@@ -1478,8 +1489,8 @@ function ResultsView({ result, onNewAnalysis, t }) {
               <div key={r.id} style={{ display:"flex", gap:10, padding:11, marginBottom:7, background:riskId===r.id?r.c+"10":t.surface2, border:`1px solid ${riskId===r.id?r.c+"44":t.border}`, borderRadius:8, alignItems:"flex-start", transition:"all 0.18s" }}>
                 <div style={{ width:7, height:7, borderRadius:"50%", background:riskId===r.id?r.c:t.border, marginTop:4, flexShrink:0, boxShadow:riskId===r.id?`0 0 6px ${r.c}88`:"none" }} />
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:riskId===r.id?r.c:t.textSub }}>{r.label} <span style={{ fontSize:9, fontFamily:"'JetBrains Mono',monospace", fontWeight:400, color:t.textMuted }}>{r.sub}</span></div>
-                  <div style={{ fontSize:11, color:t.textMuted, marginTop:2 }}>{r.desc}</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:riskId===r.id?r.c:t.textSub }}>{r.label} <span style={{ fontSize:13, fontFamily:"'JetBrains Mono',monospace", fontWeight:400, color:t.textMuted }}>{r.sub}</span></div>
+                  <div style={{ fontSize:13, color:t.textMuted, marginTop:2 }}>{r.desc}</div>
                 </div>
                 {riskId===r.id && <Badge t={t} color={r.c} sm>Active</Badge>}
               </div>
@@ -1489,8 +1500,8 @@ function ResultsView({ result, onNewAnalysis, t }) {
             <ML t={t}>KG-Activated Clauses for "{extraction.cause}"</ML>
             {(ruleResult.kg_clauses||[]).map((c,i)=>c&&(
               <div key={i} style={{ display:"flex", gap:9, padding:"6px 0", borderBottom:`1px solid ${t.border}`, alignItems:"center" }}>
-                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:t.amber, width:60, flexShrink:0, fontWeight:700 }}>{c.label}</span>
-                <span style={{ fontSize:11, color:t.text, flex:1 }}>{c.props?.title||c.type}</span>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:t.amber, width:60, flexShrink:0, fontWeight:700 }}>{c.label}</span>
+                <span style={{ fontSize:13, color:t.text, flex:1 }}>{c.props?.title||c.type}</span>
                 <Badge t={t} color={t.textMuted} sm>{c.type}</Badge>
               </div>
             ))}
@@ -1529,8 +1540,8 @@ function MetricsView({ result, t }) {
           <Card key={m.l} t={t} style={{ padding:16, textAlign:"center" }}>
             <div style={{ fontSize:18, marginBottom:8, color:m.c }}>{m.icon}</div>
             <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:20, fontWeight:800, color:m.c, lineHeight:1, marginBottom:4 }}>{m.v}</div>
-            <div style={{ fontSize:9, color:t.textMuted, letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:"'JetBrains Mono',monospace" }}>{m.l}</div>
-            <div style={{ fontSize:10, color:t.textMuted, marginTop:2 }}>{m.sub}</div>
+            <div style={{ fontSize:13, color:t.textMuted, letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:"'JetBrains Mono',monospace" }}>{m.l}</div>
+            <div style={{ fontSize:13, color:t.textMuted, marginTop:2 }}>{m.sub}</div>
           </Card>
         ))}
       </div>
@@ -1546,8 +1557,8 @@ function MetricsView({ result, t }) {
           ].map(s=>(
             <div key={s.l} style={{ marginBottom:11 }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                <span style={{ fontSize:11, color:t.textSub }}>{s.l}</span>
-                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:s.c, fontWeight:600 }}>{s.v}ms</span>
+                <span style={{ fontSize:13, color:t.textSub }}>{s.l}</span>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:s.c, fontWeight:600 }}>{s.v}ms</span>
               </div>
               <ProgressBar value={s.v} max={Math.max(metrics.total_ms,1)} color={s.c} t={t} height={4} />
             </div>
@@ -1556,13 +1567,13 @@ function MetricsView({ result, t }) {
             <ML t={t} mb={5}>Symbolic/Neural Composition</ML>
             <div style={{ display:"flex", height:18, borderRadius:5, overflow:"hidden", gap:2 }}>
               <div style={{ flex:symPct, background:`linear-gradient(90deg, ${t.emerald}CC, ${t.emerald})`, display:"flex", alignItems:"center", justifyContent:"center", borderRadius:symPct>10?"5px 0 0 5px":0 }}>
-                <span style={{ fontSize:9, fontFamily:"'JetBrains Mono',monospace", color:"#0A1A0E", fontWeight:800 }}>{symPct>15?`${symPct}%`:""}</span>
+                <span style={{ fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:"#0A1A0E", fontWeight:800 }}>{symPct>15?`${symPct}%`:""}</span>
               </div>
               <div style={{ flex:100-symPct, background:`linear-gradient(90deg, ${t.violet}CC, ${t.violet})`, display:"flex", alignItems:"center", justifyContent:"center", borderRadius:100-symPct>10?"0 5px 5px 0":0 }}>
-                <span style={{ fontSize:9, fontFamily:"'JetBrains Mono',monospace", color:"#0A081A", fontWeight:800 }}>{100-symPct>5?`${100-symPct}%`:""}</span>
+                <span style={{ fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:"#0A081A", fontWeight:800 }}>{100-symPct>5?`${100-symPct}%`:""}</span>
               </div>
             </div>
-            <div style={{ fontSize:9, color:t.textMuted, marginTop:5, fontFamily:"'JetBrains Mono',monospace" }}>Target: ≥97% symbolic for legal decisions</div>
+            <div style={{ fontSize:13, color:t.textMuted, marginTop:5, fontFamily:"'JetBrains Mono',monospace" }}>Target: ≥97% symbolic for legal decisions</div>
           </div>
         </Card>
 
@@ -1572,8 +1583,8 @@ function MetricsView({ result, t }) {
             {Object.entries(catCounts).sort((a,b)=>b[1]-a[1]).map(([cat,count])=>(
               <div key={cat} style={{ marginBottom:8 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                  <span style={{ fontSize:10, fontFamily:"'JetBrains Mono',monospace", color:catColors(t)[cat]||t.textMuted, textTransform:"uppercase", letterSpacing:"0.05em" }}>{cat}</span>
-                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:t.textMuted }}>{count}</span>
+                  <span style={{ fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:catColors(t)[cat]||t.textMuted, textTransform:"uppercase", letterSpacing:"0.05em" }}>{cat}</span>
+                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:t.textMuted }}>{count}</span>
                 </div>
                 <ProgressBar value={count} max={Math.max(ruleResult.rules_fired,1)} color={catColors(t)[cat]} t={t} height={4} />
               </div>
@@ -1592,7 +1603,7 @@ function MetricsView({ result, t }) {
               ["Rec. EOT",`${result.ruleResult.quantum.recommended} days`],
               ["Processing",`${metrics.total_ms}ms`],
             ].map(([k,v])=>(
-              <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", borderBottom:`1px solid ${t.border}`, fontSize:10 }}>
+              <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", borderBottom:`1px solid ${t.border}`, fontSize:13 }}>
                 <span style={{ color:t.textMuted, fontFamily:"'JetBrains Mono',monospace" }}>{k}</span>
                 <span style={{ color:t.text, fontFamily:"'JetBrains Mono',monospace", fontWeight:500 }}>{v}</span>
               </div>
@@ -1620,7 +1631,7 @@ function DetermineView({ result, t }) {
     const sys = `You are The Engineer issuing a formal EOT Determination under Sub-Clause 3.7.3 of the FIDIC 2017 Conditions of Contract for Construction (Red Book, 2nd Edition). Write a complete, professional, clause-anchored determination letter. Include all sections: 1. PROJECT DETAILS, 2. BACKGROUND & CLAIM SUMMARY, 3. NOTICE COMPLIANCE ANALYSIS (§20.2.1, §20.2.4, §20.2.8), 4. ENTITLEMENT ANALYSIS (§8.4 grounds), 5. PROGRAMME & DELAY ANALYSIS, 6. CONCURRENT DELAY, 7. QUANTUM ASSESSMENT, 8. DETERMINATION, 9. COST & PAYMENT, 10. CONDITIONS & RIGHTS OF REVIEW. Be formal, precise, reference specific sub-clauses. Use placeholders like [Project Name], [Contractor].`;
     const prompt = `Generate the §3.7.3 Determination:\nCause: ${extraction.cause_description||extraction.cause}\nOutcome (symbolic): ${ruleResult.outcome}\nConfidence: ${ruleResult.confidence}%\nEOT requested: ${q.requested}d | Symbolic recommendation: ${q.recommended}d\nNotice days (§20.2.1): ${extraction.notice_days??'not provided'}\nDetailed claim days (§20.2.4): ${extraction.detailed_days??'not provided'}\nBlocking rule: ${ruleResult.blocking_rule??'none'}\nRisk bearer: ${ruleResult.kg_risk?.label??'unknown'}\nCost entitlement: ${ruleResult.kg_risk?.props?.cost?'Yes':'No'}\nDeductions: ${q.deductions.map(d=>`${d.days}d — ${d.reason}`).join('; ')||'none'}\n\nKey rule findings:\n${ruleResult.reasoning_chain.slice(0,8).map(r=>`[${r.rule_id}] §${r.cl}: ${r.exp.slice(0,150)}`).join('\n')}`;
     try {
-      const res = await fetch("https://axiom-proxy.axiomeot.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2500,system:sys,messages:[{role:"user",content:prompt}]})});
+      const res = await fetch(PROXY_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2500,system:sys,messages:[{role:"user",content:prompt}]})});
       const data = await res.json();
       setDet(data.content?.map(b=>b.text||"").join("")||"Generation failed — check API connectivity.");
     } catch(_) {
@@ -1637,19 +1648,19 @@ function DetermineView({ result, t }) {
         <div>
           <Card t={t} style={{ marginBottom:12 }}>
             <ML t={t}>Determination Generator</ML>
-            <div style={{ fontSize:12, color:t.textSub, lineHeight:1.7, marginBottom:12 }}>
+            <div style={{ fontSize:13, color:t.textSub, lineHeight:1.7, marginBottom:12 }}>
               The <strong style={{ color:t.emerald }}>outcome, quantum, and clause findings</strong> come entirely from the 40-rule symbolic engine. The LLM only formats the formal letter narrative.
             </div>
             {result ? (
               <div style={{ padding:"9px 11px", background:t.surface2, borderRadius:8, border:`1px solid ${t.border}`, marginBottom:12 }}>
                 <div style={{ display:"flex", gap:7, alignItems:"center", marginBottom:5 }}>
                   <OutcomeChip outcome={result.ruleResult.outcome} t={t} />
-                  <span style={{ fontSize:10, fontFamily:"'JetBrains Mono',monospace", color:t.textMuted }}>{result.ruleResult.confidence}% · {result.ruleResult.quantum.recommended}d</span>
+                  <span style={{ fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:t.textMuted }}>{result.ruleResult.confidence}% · {result.ruleResult.quantum.recommended}d</span>
                 </div>
-                <div style={{ fontSize:10, color:t.textMuted }}>Symbolic decision locked — LLM will narrate only</div>
+                <div style={{ fontSize:13, color:t.textMuted }}>Symbolic decision locked — LLM will narrate only</div>
               </div>
             ) : (
-              <div style={{ padding:"9px 11px", background:t.orange+"10", border:`1px solid ${t.orange}28`, borderRadius:8, marginBottom:12, fontSize:11, color:t.orange }}>⚠ Run an analysis first from the Analyse tab.</div>
+              <div style={{ padding:"9px 11px", background:t.orange+"10", border:`1px solid ${t.orange}28`, borderRadius:8, marginBottom:12, fontSize:13, color:t.orange }}>⚠ Run an analysis first from the Analyse tab.</div>
             )}
             <Btn full onClick={generate} loading={loading} disabled={!result} t={t}>Generate §3.7.3 Letter</Btn>
           </Card>
@@ -1663,7 +1674,7 @@ function DetermineView({ result, t }) {
             ].map((a,i)=>(
               <div key={i} style={{ display:"flex", gap:10, padding:"9px 0", borderBottom:`1px solid ${t.border}` }}>
                 <div style={{ width:30, height:30, borderRadius:7, background:a.c+"14", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, color:a.c, flexShrink:0, border:`1px solid ${a.c}28` }}>{a.icon}</div>
-                <div><div style={{ fontSize:12, fontWeight:600, color:t.text }}>{a.label}</div><div style={{ fontSize:10, color:t.textMuted, marginTop:2 }}>{a.desc}</div></div>
+                <div><div style={{ fontSize:13, fontWeight:600, color:t.text }}>{a.label}</div><div style={{ fontSize:13, color:t.textMuted, marginTop:2 }}>{a.desc}</div></div>
               </div>
             ))}
           </Card>
@@ -1674,15 +1685,15 @@ function DetermineView({ result, t }) {
             <Card t={t} style={{ textAlign:"center", padding:50 }}>
               <div style={{ fontSize:20, color:t.amber, animation:"pulse 1.5s ease-in-out infinite", marginBottom:10 }}>◌</div>
               <div style={{ fontSize:14, fontWeight:600, color:t.text }}>Drafting formal determination…</div>
-              <div style={{ fontSize:11, color:t.textMuted, marginTop:5 }}>LLM narrating symbolic decision · max 2500 tokens</div>
+              <div style={{ fontSize:13, color:t.textMuted, marginTop:5 }}>LLM narrating symbolic decision · max 2500 tokens</div>
             </Card>
           )}
           {det && !loading && (
             <Card t={t} noPad>
               <div style={{ padding:"11px 14px", borderBottom:`1px solid ${t.border}`, display:"flex", justifyContent:"space-between", alignItems:"center", background:t.surface2, borderRadius:"12px 12px 0 0" }}>
                 <div>
-                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:t.amber, fontWeight:700 }}>§3.7.3 ENGINEER'S DETERMINATION</div>
-                  <div style={{ fontSize:9, color:t.textMuted, marginTop:1 }}>Symbolic decision · LLM-narrated letter</div>
+                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:t.amber, fontWeight:700 }}>§3.7.3 ENGINEER'S DETERMINATION</div>
+                  <div style={{ fontSize:13, color:t.textMuted, marginTop:1 }}>Symbolic decision · LLM-narrated letter</div>
                 </div>
                 <div style={{ display:"flex", gap:7 }}>
                   <Badge t={t} color={t.emerald} sm>Symbolic Decision</Badge>
@@ -1690,14 +1701,14 @@ function DetermineView({ result, t }) {
                 </div>
               </div>
               <div style={{ padding:18, maxHeight:580, overflowY:"auto" }}>
-                <pre style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12, color:t.textSub, lineHeight:1.85, whiteSpace:"pre-wrap", margin:0 }}>{det}</pre>
+                <pre style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:t.textSub, lineHeight:1.85, whiteSpace:"pre-wrap", margin:0 }}>{det}</pre>
               </div>
             </Card>
           )}
           {!det && !loading && (
             <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:280, gap:10, background:t.surface, border:`1px solid ${t.border}`, borderRadius:12 }}>
               <div style={{ fontSize:28, color:t.border }}>⊛</div>
-              <div style={{ fontSize:12, color:t.textMuted }}>Click Generate to produce the formal §3.7.3 determination letter</div>
+              <div style={{ fontSize:13, color:t.textMuted }}>Click Generate to produce the formal §3.7.3 determination letter</div>
             </div>
           )}
         </div>
@@ -1727,7 +1738,7 @@ function KGView({ t }) {
           <Card key={m.l} t={t} style={{ padding:14, textAlign:"center" }}>
             <div style={{ fontSize:18, color:m.c, marginBottom:2 }}>{m.icon}</div>
             <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:22, fontWeight:700, color:m.c, lineHeight:1 }}>{m.v}</div>
-            <div style={{ fontSize:9, color:t.textMuted, marginTop:3, fontFamily:"'JetBrains Mono',monospace", letterSpacing:"0.1em", textTransform:"uppercase" }}>{m.l}</div>
+            <div style={{ fontSize:13, color:t.textMuted, marginTop:3, fontFamily:"'JetBrains Mono',monospace", letterSpacing:"0.1em", textTransform:"uppercase" }}>{m.l}</div>
           </Card>
         ))}
       </div>
@@ -1739,8 +1750,8 @@ function KGView({ t }) {
             <ML t={t}>Filter by Type</ML>
             {types.map(tp=>(
               <button key={tp} onClick={()=>setSelType(tp)} className="hoverable"
-                style={{ display:"block", width:"100%", padding:"7px 9px", marginBottom:3, background:selType===tp?(typeColor[tp]||t.amber)+"16":t.surface2, border:`1px solid ${selType===tp?(typeColor[tp]||t.amber)+"44":t.border}`, color:selType===tp?(typeColor[tp]||t.amber):t.textSub, borderRadius:6, textAlign:"left", cursor:"pointer", fontSize:11, fontFamily:"'JetBrains Mono',monospace", fontWeight:selType===tp?700:400 }}>
-                {tp} <span style={{ color:t.textMuted, fontSize:9 }}>({FIDIC_KB.nodes.filter(n=>tp==="ALL"||n.type===tp).length})</span>
+                style={{ display:"block", width:"100%", padding:"7px 9px", marginBottom:3, background:selType===tp?(typeColor[tp]||t.amber)+"16":t.surface2, border:`1px solid ${selType===tp?(typeColor[tp]||t.amber)+"44":t.border}`, color:selType===tp?(typeColor[tp]||t.amber):t.textSub, borderRadius:6, textAlign:"left", cursor:"pointer", fontSize:13, fontFamily:"'JetBrains Mono',monospace", fontWeight:selType===tp?700:400 }}>
+                {tp} <span style={{ color:t.textMuted, fontSize:13 }}>({FIDIC_KB.nodes.filter(n=>tp==="ALL"||n.type===tp).length})</span>
               </button>
             ))}
           </Card>
@@ -1752,7 +1763,7 @@ function KGView({ t }) {
               <Badge t={t} color={typeColor[nodeInfo.type]||t.amber} sm>{nodeInfo.type}</Badge>
               <div style={{ marginTop:9 }}>
                 {Object.entries(nodeInfo.props||{}).map(([k,v])=>(
-                  <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", borderBottom:`1px solid ${t.border}`, fontSize:10 }}>
+                  <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", borderBottom:`1px solid ${t.border}`, fontSize:13 }}>
                     <span style={{ color:t.textMuted }}>{k}</span>
                     <span style={{ color:t.text, fontFamily:"'JetBrains Mono',monospace" }}>{String(v)}</span>
                   </div>
@@ -1762,7 +1773,7 @@ function KGView({ t }) {
                 <div style={{ marginTop:9 }}>
                   <ML t={t} mb={4}>Connections ({nodeEdges.length})</ML>
                   {nodeEdges.slice(0,8).map((e,i)=>(
-                    <div key={i} style={{ fontSize:9, fontFamily:"'JetBrains Mono',monospace", color:t.textMuted, marginBottom:3, lineHeight:1.5 }}>
+                    <div key={i} style={{ fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:t.textMuted, marginBottom:3, lineHeight:1.5 }}>
                       <span style={{ color:e.from===selNode?t.cyan:t.textSub }}>{e.from}</span>
                       <span style={{ color:t.amber }}> —{e.rel}→ </span>
                       <span style={{ color:e.to===selNode?t.violet:t.textSub }}>{e.to}</span>
@@ -1780,7 +1791,7 @@ function KGView({ t }) {
             <ML t={t}>{vis.length} nodes shown — click to inspect</ML>
             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
               {Object.entries(typeColor).map(([tp,c])=>(
-                <span key={tp} style={{ display:"inline-flex", alignItems:"center", gap:3, fontSize:9, color:t.textMuted }}>
+                <span key={tp} style={{ display:"inline-flex", alignItems:"center", gap:3, fontSize:13, color:t.textMuted }}>
                   <span style={{ width:7,height:7,borderRadius:2,background:c,display:"inline-block" }}/>{tp}
                 </span>
               ))}
@@ -1793,7 +1804,7 @@ function KGView({ t }) {
                 style={{ padding:"5px 10px", borderRadius:7, border:`1px solid ${selNode===n.id?typeColor[n.type]||t.amber:t.border}`, background:selNode===n.id?(typeColor[n.type]||t.amber)+"16":t.surface2, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", minWidth:70, transition:"all 0.13s", boxShadow:selNode===n.id?`0 0 10px ${(typeColor[n.type]||t.amber)+"44"}`:"none" }}
                 onMouseEnter={e=>{if(n.id!==selNode){e.currentTarget.style.borderColor=typeColor[n.type]||t.borderHi;e.currentTarget.style.transform="translateY(-1px)";}}}
                 onMouseLeave={e=>{if(n.id!==selNode){e.currentTarget.style.borderColor=t.border;e.currentTarget.style.transform="translateY(0)";}}}>
-                <span style={{ fontSize:10, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, color:typeColor[n.type]||t.textSub }}>{n.label}</span>
+                <span style={{ fontSize:13, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, color:typeColor[n.type]||t.textSub }}>{n.label}</span>
                 <span style={{ fontSize:7, color:t.textMuted, marginTop:1 }}>{n.type}</span>
               </div>
             ))}
@@ -1817,8 +1828,8 @@ function KGView({ t }) {
             <div style={{ display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
               {["Delay Event","§8.4 Ground","Obligation","§20.2.1 Notice","Risk Allocation","40 Rules","EOT Decision"].map((s,i,arr)=>(
                 <span key={i} style={{ display:"inline-flex", alignItems:"center", gap:5 }}>
-                  <span style={{ padding:"4px 9px", background:i===arr.length-1?t.amberDim:t.surface2, border:`1px solid ${i===arr.length-1?t.amberBorder:t.border}`, borderRadius:5, fontSize:10, fontFamily:"'JetBrains Mono',monospace", color:i===arr.length-1?t.amber:i===0?t.textMuted:t.textSub, fontWeight:i===arr.length-1?700:400 }}>{s}</span>
-                  {i<arr.length-1 && <span style={{ color:t.textMuted, fontSize:10 }}>→</span>}
+                  <span style={{ padding:"4px 9px", background:i===arr.length-1?t.amberDim:t.surface2, border:`1px solid ${i===arr.length-1?t.amberBorder:t.border}`, borderRadius:5, fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:i===arr.length-1?t.amber:i===0?t.textMuted:t.textSub, fontWeight:i===arr.length-1?700:400 }}>{s}</span>
+                  {i<arr.length-1 && <span style={{ color:t.textMuted, fontSize:13 }}>→</span>}
                 </span>
               ))}
             </div>
@@ -1866,8 +1877,8 @@ function AboutView({ t }) {
               { title:"AI Chat Assistant", c:t.orange, desc:"Contextual FIDIC guidance. Understands current analysis state. Helps users understand parameters, interpret results, and navigate FIDIC 2017 clauses." },
             ].map(p=>(
               <div key={p.title} style={{ padding:"10px 0", borderBottom:`1px solid ${t.border}` }}>
-                <div style={{ fontSize:12, fontWeight:700, color:p.c, marginBottom:3 }}>{p.title}</div>
-                <div style={{ fontSize:11, color:t.textSub, lineHeight:1.65 }}>{p.desc}</div>
+                <div style={{ fontSize:13, fontWeight:700, color:p.c, marginBottom:3 }}>{p.title}</div>
+                <div style={{ fontSize:13, color:t.textSub, lineHeight:1.65 }}>{p.desc}</div>
               </div>
             ))}
           </Card>
@@ -1881,9 +1892,9 @@ function AboutView({ t }) {
               {k:"Decisions",  v:"Fully symbolic — no AI for legal conclusions",     c:t.emerald},
               {k:"Infra Cost", v:"$0/month + Anthropic API usage only",             c:t.amber},
             ].map(d=>(
-              <div key={d.k} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${t.border}`, fontSize:11 }}>
+              <div key={d.k} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${t.border}`, fontSize:13 }}>
                 <span style={{ color:t.textMuted, fontFamily:"'JetBrains Mono',monospace" }}>{d.k}</span>
-                <span style={{ color:d.c, fontSize:10 }}>{d.v}</span>
+                <span style={{ color:d.c, fontSize:13 }}>{d.v}</span>
               </div>
             ))}
           </Card>
@@ -1907,9 +1918,9 @@ function AboutView({ t }) {
               {cl:"§1.9/§2.1",title:"Late Drawings / Site Access",rule:"R018",critical:false},
             ].map(r=>(
               <div key={r.cl} style={{ display:"flex", gap:9, padding:"5px 0", borderBottom:`1px solid ${t.border}`, alignItems:"center" }}>
-                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:r.critical?t.rose:t.amber, width:64, flexShrink:0, fontWeight:700 }}>{r.cl}</span>
-                <span style={{ fontSize:11, color:t.text, flex:1 }}>{r.title}</span>
-                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:t.textMuted }}>{r.rule}</span>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:r.critical?t.rose:t.amber, width:64, flexShrink:0, fontWeight:700 }}>{r.cl}</span>
+                <span style={{ fontSize:13, color:t.text, flex:1 }}>{r.title}</span>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:t.textMuted }}>{r.rule}</span>
               </div>
             ))}
           </Card>
@@ -1918,8 +1929,8 @@ function AboutView({ t }) {
             <ML t={t}>v5 New Features</ML>
             {["Vertical sidebar navigation with icon+label layout","New geometric AXIOM logo mark","Completely redesigned UI with improved hierarchy","Fixed dark/light mode switching (persists correctly)","New Dashboard home with KG stats and analysis overview","AI Chat Assistant panel (FIDIC-aware contextual guidance)","Better card design with gradient borders and depth","Improved typography (DM Sans + JetBrains Mono)","Responsive layout with collapsible sidebar","All v4 features preserved and improved"].map((c,i)=>(
               <div key={i} style={{ display:"flex", gap:9, padding:"6px 0", borderBottom:`1px solid ${t.border}` }}>
-                <span style={{ color:t.amber, flexShrink:0, fontSize:11 }}>◈</span>
-                <span style={{ fontSize:11, color:t.textSub, lineHeight:1.6 }}>{c}</span>
+                <span style={{ color:t.amber, flexShrink:0, fontSize:13 }}>◈</span>
+                <span style={{ fontSize:13, color:t.textSub, lineHeight:1.6 }}>{c}</span>
               </div>
             ))}
           </Card>
@@ -2051,7 +2062,7 @@ function generateAnalysisReport(result) {
 function Toast({ toast, t }) {
   if(!toast) return null;
   return (
-    <div style={{ position:"fixed", top:64, right:22, zIndex:999, padding:"10px 15px", background:toast.type==="error"?t.roseGlow:t.emeraldGlow, border:`1px solid ${toast.type==="error"?t.rose:t.emerald}44`, borderRadius:10, fontSize:11, fontFamily:"'JetBrains Mono',monospace", color:toast.type==="error"?t.rose:t.emerald, boxShadow:t.shadow, animation:"slideIn 0.2s ease", maxWidth:420, backdropFilter:"blur(12px)" }}>
+    <div style={{ position:"fixed", top:64, right:22, zIndex:999, padding:"10px 15px", background:toast.type==="error"?t.roseGlow:t.emeraldGlow, border:`1px solid ${toast.type==="error"?t.rose:t.emerald}44`, borderRadius:10, fontSize:13, fontFamily:"'JetBrains Mono',monospace", color:toast.type==="error"?t.rose:t.emerald, boxShadow:t.shadow, animation:"slideIn 0.2s ease", maxWidth:420, backdropFilter:"blur(12px)" }}>
       {toast.type==="error"?"⛔":"✓"} {toast.msg}
     </div>
   );
@@ -2089,8 +2100,8 @@ export default function App() {
       {/* Sidebar */}
       <Sidebar view={view} setView={setView} t={t} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(c => !c)} result={result} />
 
-      {/* Main area */}
-      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0 }}>
+      {/* Main area — shrinks when chat is open */}
+      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0, transition:"flex 0.25s ease" }}>
         <Header view={view} t={t} isDark={isDark} setIsDark={setIsDark} onOpenChat={() => setChatOpen(o => !o)} result={result} />
 
         {/* Content */}
@@ -2107,20 +2118,16 @@ export default function App() {
         </main>
 
         {/* Footer */}
-        <footer style={{ borderTop:`1px solid ${t.border}`, padding:"8px 22px", background:t.surface, display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
-          <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:t.textMuted }}>AXIOM v5 · FIDIC 2017 · 40 rules · 35N/41E · Symbolic decisions only</span>
-          <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, color:t.textMuted }}>Not legal advice — indicative recommendations only</span>
+        <footer style={{ borderTop:`1px solid ${t.border}`, padding:"9px 22px", background:t.surface, display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
+          <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:t.textMuted }}>AXIOM v5 · FIDIC 2017 · 40 rules · 35N/41E · Symbolic decisions only</span>
+          <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:t.textMuted }}>Not legal advice — indicative recommendations only</span>
         </footer>
       </div>
 
-      {/* AI Chat panel (slides from right) */}
-      {chatOpen && (
-        <div style={{ position:"fixed", inset:0, zIndex:100 }} onClick={(e) => { if(e.target===e.currentTarget) setChatOpen(false); }}>
-          <div style={{ position:"absolute", right:0, top:0, bottom:0, width:380, background:t.surface, boxShadow:t.shadow, animation:"slideIn 0.25s ease", display:"flex", flexDirection:"column" }}>
-            <ChatPanel t={t} onClose={() => setChatOpen(false)} result={result} />
-          </div>
-        </div>
-      )}
+      {/* AI Chat panel — inline flex column, pushes content left */}
+      <div style={{ width: chatOpen ? 380 : 0, flexShrink:0, overflow:"hidden", transition:"width 0.25s ease", borderLeft: chatOpen ? `1px solid ${t.border}` : "none", display:"flex", flexDirection:"column" }}>
+        {chatOpen && <ChatPanel t={t} onClose={() => setChatOpen(false)} result={result} />}
+      </div>
 
       <Toast toast={toast} t={t} />
     </div>

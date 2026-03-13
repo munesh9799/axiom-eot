@@ -1,6 +1,6 @@
 {
-  "name": "axiom-eot-v4",
-  "version": "4.0.0",
+  "name": "axiom-eot-v4.1",
+  "version": "4.1.0",
   "description": "AXIOM — Neurosymbolic EOT Intelligence Platform. FIDIC 2017 Extension of Time determination using Knowledge Graph + Symbolic AI + Explainability.",
   "private": true,
   "type": "module",
